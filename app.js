@@ -115,7 +115,7 @@ async function callHF(prompt) {
     
     // Если мы не на Netlify (локально), функция может не существовать
     if (res.status === 404) {
-      window.lastHFError = 'Функция не найдена. Работает только после деплоя на Netlify.';
+      window.lastHFError = `Функция не найдена по адресу ${url}. Убедитесь, что вы открыли сайт через .netlify.app или запустили 'netlify dev' локально.`;
       return null;
     }
 
