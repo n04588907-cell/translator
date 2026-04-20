@@ -14,6 +14,9 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // Очистка ключа от не-ASCII символов (защита от ByteString error)
+    const cleanKey = key.replace(/[^\x00-\x7F]/g, "");
+
     // Используем Qwen 2.5 72B Instruct через Hugging Face Inference API (OpenAI-совместимый эндпоинт)
     const modelId = "Qwen/Qwen2.5-72B-Instruct";
     const url = "https://api-inference.huggingface.co/v1/chat/completions";
@@ -22,7 +25,7 @@ exports.handler = async (event, context) => {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${key}`
+        'Authorization': `Bearer ${cleanKey}`
       },
       body: JSON.stringify({
         model: modelId,

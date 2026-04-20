@@ -8,7 +8,7 @@ let cardFlipped = false;
 let pendingImageWord = null;
 let hfAssociation = null; // stores the last HF-proposed association
 
-function getHFKey() { return localStorage.getItem('hf_api_key') || ''; }
+function getHFKey() { return (localStorage.getItem('hf_api_key') || '').replace(/[^\x00-\x7F]/g, ''); }
 function saveHFKey(k) { localStorage.setItem('hf_api_key', k.trim()); }
 
 // ========== SEED DATA ==========
@@ -442,8 +442,12 @@ function openHFSettings() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <button class="btn btn-secondary" onclick="this.closest('div[style]').remove()">Отмена</button>
         <button id="btn-save-hf" class="btn btn-primary" onclick="
-          const v = document.getElementById('hf-key-input').value.trim();
+          let v = document.getElementById('hf-key-input').value.trim();
           if(!v) { showToast('Введите ключ'); return; }
+          if(/[^\x00-\x7F]/.test(v)) {
+            document.getElementById('hf-test-status').innerHTML = '<span style=&quot;color:var(--error)&quot;>❌ Ключ содержит русские буквы или спецсимволы. Проверьте раскладку.</span>';
+            return;
+          }
           saveHFKey(v);
           this.textContent = 'Проверяю...';
           this.disabled = true;
