@@ -444,31 +444,42 @@ function openHFSettings() {
       <div id="hf-test-status" class="body-sm" style="margin-bottom:16px;min-height:20px;"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <button class="btn btn-secondary" onclick="this.closest('div[style]').remove()">Отмена</button>
-        <button id="btn-save-hf" class="btn btn-primary" onclick="
-          let v = document.getElementById('hf-key-input').value.trim();
-          if(!v) { showToast('Введите ключ'); return; }
-          if(/[^\x00-\x7F]/.test(v)) {
-            document.getElementById('hf-test-status').innerHTML = '<span style=&quot;color:var(--error)&quot;>❌ Ключ содержит русские буквы или спецсимволы. Проверьте раскладку.</span>';
-            return;
-          }
-          saveHFKey(v);
-          this.textContent = 'Проверяю...';
-          this.disabled = true;
-          callHF('test').then(res => {
-            if(res) {
-              showToast('✅ Ключ работает!');
-              this.closest('div[style]').remove();
-              renderAddWord();
-            } else {
-              document.getElementById('hf-test-status').innerHTML = '<span style=&quot;color:var(--error)&quot;>❌ ' + (window.lastHFError || 'Ошибка') + '</span>';
-              this.textContent = 'Сохранить';
-              this.disabled = false;
-            }
-          });
-        ">Сохранить</button>
+        <button id="btn-save-hf" class="btn btn-primary" onclick="handleSaveHFKey(this)">Сохранить</button>
       </div>
     </div>
   `;
+}
+
+async function handleSaveHFKey(btn) {
+  const input = document.getElementById('hf-key-input');
+  const status = document.getElementById('hf-test-status');
+  if (!input || !status) return;
+
+  const v = input.value.trim();
+  if (!v) { showToast('Введите ключ'); return; }
+
+  if (/[^\x00-\x7F]/.test(v)) {
+    status.innerHTML = '<span style="color:var(--error)">❌ Ключ содержит русские буквы. Проверьте раскладку.</span>';
+    return;
+  }
+
+  saveHFKey(v);
+  btn.textContent = 'Проверяю...';
+  btn.disabled = true;
+  status.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0 auto;"></div>';
+
+  const res = await callHF('test');
+  
+  if (res) {
+    showToast('✅ Ключ работает!');
+    btn.closest('div[style]').parentElement.remove(); // The overlay
+    renderAddWord();
+  } else {
+    status.innerHTML = `<span style="color:var(--error)">❌ ${window.lastHFError || 'Ошибка'}</span>`;
+    btn.textContent = 'Сохранить';
+    btn.disabled = false;
+  }
+}
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
   document.body.appendChild(overlay);
 }
