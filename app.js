@@ -448,6 +448,8 @@ function openHFSettings() {
       </div>
     </div>
   `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 async function handleSaveHFKey(btn) {
@@ -479,9 +481,6 @@ async function handleSaveHFKey(btn) {
     btn.textContent = 'Сохранить';
     btn.disabled = false;
   }
-}
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-  document.body.appendChild(overlay);
 }
 
 let autoLookupTimer = null;
