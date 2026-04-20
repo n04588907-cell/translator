@@ -298,6 +298,8 @@ function wordChip(w) {
 
 // ========== ADD WORD ==========
 function renderAddWord() {
+  deepseekAssociation = null;
+  const el = document.getElementById('screen-add');
   const hasDeepSeek = !!getDeepSeekKey();
   el.innerHTML = `
     <div style="margin-bottom:20px;">
