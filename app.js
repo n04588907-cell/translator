@@ -104,7 +104,8 @@ async function callHF(prompt) {
   }
 
   // Путь к нашей серверной функции на Netlify
-  const url = '/.netlify/functions/huggingface';
+  const url = '/.netlify/functions/ai-gen';
+  console.log('Calling AI function:', url);
 
   try {
     const res = await fetch(url, {
@@ -113,9 +114,11 @@ async function callHF(prompt) {
       body: JSON.stringify({ prompt, key })
     });
     
+    console.log('AI function response status:', res.status);
+    
     // Если мы не на Netlify (локально), функция может не существовать
     if (res.status === 404) {
-      window.lastHFError = `Функция не найдена по адресу ${url}. Убедитесь, что вы открыли сайт через .netlify.app или запустили 'netlify dev' локально.`;
+      window.lastHFError = `Функция не найдена (404) по адресу ${url}. Убедитесь, что деплой завершен.`;
       return null;
     }
 
