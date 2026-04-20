@@ -5,7 +5,7 @@ exports.handler = async (event, context) => {
 
   try {
     const { prompt, key } = JSON.parse(event.body);
-    console.log("DeepSeek function called for prompt:", prompt.slice(0, 50) + "...");
+    console.log("Hugging Face function called for prompt:", prompt.slice(0, 50) + "...");
 
     if (!key || !prompt) {
       return { 
@@ -14,7 +14,9 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const url = "https://api.deepseek.com/chat/completions";
+    // Используем Qwen 2.5 72B Instruct через Hugging Face Inference API
+    const modelId = "Qwen/Qwen2.5-72B-Instruct";
+    const url = `https://api-inference.huggingface.co/models/${modelId}/v1/chat/completions`;
     
     const response = await fetch(url, {
       method: 'POST',
@@ -23,25 +25,35 @@ exports.handler = async (event, context) => {
         'Authorization': `Bearer ${key}`
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: modelId,
         messages: [
-          { role: "system", content: "You are a helpful assistant that generates mnemonic associations." },
+          { role: "system", content: "You are a helpful assistant that generates mnemonic associations. Respond only with JSON." },
           { role: "user", content: prompt }
         ],
+        max_tokens: 500,
         stream: false
       })
     });
 
     const data = await response.json();
     
+    if (!response.ok) {
+      return {
+        statusCode: response.status,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: { message: data.error || "Hugging Face API Error" } })
+      };
+    }
+
     return {
-      statusCode: response.status,
+      statusCode: 200,
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify(data)
     };
   } catch (error) {
+    console.error("HF Function Error:", error);
     return { 
       statusCode: 500, 
       body: JSON.stringify({ error: { message: error.message } }) 

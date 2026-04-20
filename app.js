@@ -6,10 +6,10 @@ let practiceSession = [];
 let practiceIndex = 0;
 let cardFlipped = false;
 let pendingImageWord = null;
-let deepseekAssociation = null; // stores the last DeepSeek-proposed association
+let hfAssociation = null; // stores the last HF-proposed association
 
-function getDeepSeekKey() { return localStorage.getItem('deepseek_api_key') || ''; }
-function saveDeepSeekKey(k) { localStorage.setItem('deepseek_api_key', k.trim()); }
+function getHFKey() { return localStorage.getItem('hf_api_key') || ''; }
+function saveHFKey(k) { localStorage.setItem('hf_api_key', k.trim()); }
 
 // ========== SEED DATA ==========
 if (words.length === 0) {
@@ -93,18 +93,18 @@ async function autoPhonetic(word) {
   } catch { return ''; }
 }
 
-// ========== DEEPSEEK API ==========
-async function callDeepSeek(prompt) {
-  const key = getDeepSeekKey();
-  window.lastDeepSeekError = '';
+// ========== HUGGING FACE API ==========
+async function callHF(prompt) {
+  const key = getHFKey();
+  window.lastHFError = '';
   
   if (!key) {
-    window.lastDeepSeekError = 'API ключ не найден. Нажмите ⚙️ и вставьте ключ.';
+    window.lastHFError = 'API ключ не найден. Нажмите ⚙️ и вставьте ключ.';
     return null;
   }
 
   // Путь к нашей серверной функции на Netlify
-  const url = '/.netlify/functions/deepseek';
+  const url = '/.netlify/functions/huggingface';
 
   try {
     const res = await fetch(url, {
@@ -115,31 +115,31 @@ async function callDeepSeek(prompt) {
     
     // Если мы не на Netlify (локально), функция может не существовать
     if (res.status === 404) {
-      window.lastDeepSeekError = 'Функция не найдена. Работает только после деплоя на Netlify.';
+      window.lastHFError = 'Функция не найдена. Работает только после деплоя на Netlify.';
       return null;
     }
 
     const data = await res.json();
 
     if (data.error) {
-      const msg = data.error.message || '';
-      window.lastDeepSeekError = msg || 'Ошибка API';
+      const msg = typeof data.error === 'string' ? data.error : (data.error.message || '');
+      window.lastHFError = msg || 'Ошибка API';
       return null;
     }
 
     const text = data?.choices?.[0]?.message?.content;
     if (text) return text;
     
-    window.lastDeepSeekError = 'Получен пустой ответ от ИИ';
+    window.lastHFError = 'Получен пустой ответ от ИИ';
     return null;
   } catch (e) {
-    window.lastDeepSeekError = 'Ошибка вызова функции. Вы развернули проект на Netlify?';
+    window.lastHFError = 'Ошибка вызова функции. Вы развернули проект на Netlify?';
     console.error('Netlify function error:', e);
     return null;
   }
 }
 
-async function deepseekGetAssociation(word, phonetic, translation) {
+async function hfGetAssociation(word, phonetic, translation) {
   const prompt = `Ты помогаешь запоминать английские слова методом фонетических ассоциаций (метод Аткинсона).
 
 Слово: "${word}"
@@ -153,7 +153,7 @@ async function deepseekGetAssociation(word, phonetic, translation) {
   "association": "текст ассоциации",
   "imagePrompt": "detailed English prompt for illustration based on this mnemonic"
 }`;
-  const raw = await callDeepSeek(prompt);
+  const raw = await callHF(prompt);
   if (!raw) return null;
   try {
     // Strip possible markdown code fences
@@ -162,8 +162,8 @@ async function deepseekGetAssociation(word, phonetic, translation) {
     if (!jsonStr) throw new Error("JSON не найден в ответе");
     return JSON.parse(jsonStr);
   } catch (e) {
-    console.error('DeepSeek JSON Parse Error:', e, raw);
-    window.lastDeepSeekError = 'Ошибка обработки ответа ИИ: ' + e.message;
+    console.error('HF JSON Parse Error:', e, raw);
+    window.lastHFError = 'Ошибка обработки ответа ИИ: ' + e.message;
     return null;
   }
 }
@@ -298,14 +298,14 @@ function wordChip(w) {
 
 // ========== ADD WORD ==========
 function renderAddWord() {
-  deepseekAssociation = null;
+  hfAssociation = null;
   const el = document.getElementById('screen-add');
-  const hasDeepSeek = !!getDeepSeekKey();
+  const hasHF = !!getHFKey();
   el.innerHTML = `
     <div style="margin-bottom:20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div class="headline">Новое слово</div>
-        <button class="btn-icon btn" title="Настройки DeepSeek" onclick="openDeepSeekSettings()">
+        <button class="btn-icon btn" title="Настройки Hugging Face" onclick="openHFSettings()">
           <span class="material-icons-round" style="font-size:20px;">settings</span>
         </button>
       </div>
@@ -341,11 +341,11 @@ function renderAddWord() {
     <div class="input-wrap">
       <label class="input-label">Мнемоническая ассоциация</label>
       <textarea id="inp-association" class="input" rows="3"
-        placeholder="Нажмите «DeepSeek» — ИИ предложит ассоциацию…"></textarea>
-      <button id="deepseek-assoc-btn" class="btn btn-secondary" style="margin-top:8px;"
-        onclick="requestDeepSeekAssociation()" ${hasDeepSeek ? '' : 'title="Добавьте DeepSeek API ключ в настройках"'}>
+        placeholder="Нажмите «AI» — ИИ предложит ассоциацию…"></textarea>
+      <button id="hf-assoc-btn" class="btn btn-secondary" style="margin-top:8px;"
+        onclick="requestHFAssociation()" ${hasHF ? '' : 'title="Добавьте Hugging Face API ключ в настройках"'}>
         <span class="material-icons-round">psychology</span>
-        ${hasDeepSeek ? 'Предложить ассоциацию (DeepSeek)' : '🔑 Нужен DeepSeek API ключ'}
+        ${hasHF ? 'Предложить ассоциацию (AI)' : '🔑 Нужен Hugging Face API ключ'}
       </button>
     </div>
 
@@ -357,7 +357,7 @@ function renderAddWord() {
       <div class="assoc-image-wrap" id="assoc-image-wrap">
         <div class="assoc-image-placeholder">
           <span class="material-icons-round">image_search</span>
-          <span class="body-sm" id="img-hint">Сначала получите ассоциацию от DeepSeek</span>
+          <span class="body-sm" id="img-hint">Сначала получите ассоциацию от AI</span>
         </div>
       </div>
       <button id="gen-img-btn" class="btn btn-secondary" onclick="handleGenerateImageNew()">
@@ -397,27 +397,27 @@ function startVoiceInput() {
   };
 }
 
-// ========== DEEPSEEK ASSOCIATION ==========
-async function requestDeepSeekAssociation() {
+// ========== HUGGING FACE ASSOCIATION ==========
+async function requestHFAssociation() {
   const word = document.getElementById('inp-word')?.value.trim();
   const phonetic = document.getElementById('inp-phonetic')?.value.trim();
   const translation = document.getElementById('inp-translation')?.value.trim();
   if (!word) { showToast('Введите слово'); return; }
-  if (!getDeepSeekKey()) { openDeepSeekSettings(); return; }
+  if (!getHFKey()) { openHFSettings(); return; }
 
-  const btn = document.getElementById('deepseek-assoc-btn');
+  const btn = document.getElementById('hf-assoc-btn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0 auto;"></div>'; }
 
-  const result = await deepseekGetAssociation(word, phonetic || '', translation || '');
+  const result = await hfGetAssociation(word, phonetic || '', translation || '');
 
   if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-icons-round">psychology</span> Предложить снова'; }
 
   if (!result) { 
-    showToast('⚠️ ' + (window.lastDeepSeekError || 'DeepSeek не ответил. Проверьте API ключ.')); 
+    showToast('⚠️ ' + (window.lastHFError || 'AI не ответил. Проверьте API ключ.')); 
     return; 
   }
 
-  deepseekAssociation = result;
+  hfAssociation = result;
   const assocTA = document.getElementById('inp-association');
   if (assocTA) assocTA.value = result.association || '';
 
@@ -425,35 +425,35 @@ async function requestDeepSeekAssociation() {
   const hint = document.getElementById('img-hint');
   if (hint && result.imagePrompt) hint.textContent = '💡 ' + result.imagePrompt.slice(0, 80) + '…';
 
-  showToast('✅ Ассоциация от DeepSeek готова!');
+  showToast('✅ Ассоциация готова!');
 }
 
-// ========== DEEPSEEK SETTINGS MODAL ==========
-function openDeepSeekSettings() {
+// ========== HUGGING FACE SETTINGS MODAL ==========
+function openHFSettings() {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(45,52,44,0.5);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px;';
   overlay.innerHTML = `
     <div style="background:var(--surface);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:380px;">
-      <div class="title" style="margin-bottom:8px;">🔑 DeepSeek API ключ <span style="font-size:10px;opacity:0.5;float:right;">v1.3</span></div>
-      <div class="body-sm" style="margin-bottom:16px;">Получите ключ на <a href="https://platform.deepseek.com/" target="_blank" style="color:var(--secondary);">platform.deepseek.com</a></div>
-      <input id="deepseek-key-input" class="input" type="password" placeholder="sk-..."
-        value="${getDeepSeekKey()}" style="margin-bottom:12px;">
-      <div id="deepseek-test-status" class="body-sm" style="margin-bottom:16px;min-height:20px;"></div>
+      <div class="title" style="margin-bottom:8px;">🔑 Hugging Face API ключ <span style="font-size:10px;opacity:0.5;float:right;">Qwen 2.5</span></div>
+      <div class="body-sm" style="margin-bottom:16px;">Получите ключ на <a href="https://huggingface.co/settings/tokens" target="_blank" style="color:var(--secondary);">huggingface.co</a></div>
+      <input id="hf-key-input" class="input" type="password" placeholder="hf_..."
+        value="${getHFKey()}" style="margin-bottom:12px;">
+      <div id="hf-test-status" class="body-sm" style="margin-bottom:16px;min-height:20px;"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <button class="btn btn-secondary" onclick="this.closest('div[style]').remove()">Отмена</button>
-        <button id="btn-save-deepseek" class="btn btn-primary" onclick="
-          const v = document.getElementById('deepseek-key-input').value.trim();
+        <button id="btn-save-hf" class="btn btn-primary" onclick="
+          const v = document.getElementById('hf-key-input').value.trim();
           if(!v) { showToast('Введите ключ'); return; }
-          saveDeepSeekKey(v);
+          saveHFKey(v);
           this.textContent = 'Проверяю...';
           this.disabled = true;
-          callDeepSeek('test').then(res => {
+          callHF('test').then(res => {
             if(res) {
               showToast('✅ Ключ работает!');
               this.closest('div[style]').remove();
               renderAddWord();
             } else {
-              document.getElementById('deepseek-test-status').innerHTML = '<span style=&quot;color:var(--error)&quot;>❌ ' + (window.lastDeepSeekError || 'Ошибка') + '</span>';
+              document.getElementById('hf-test-status').innerHTML = '<span style=&quot;color:var(--error)&quot;>❌ ' + (window.lastHFError || 'Ошибка') + '</span>';
               this.textContent = 'Сохранить';
               this.disabled = false;
             }
@@ -527,9 +527,9 @@ function selectTranslation(btn, value) {
 async function handleGenerateImageNew() {
   const word = document.getElementById('inp-word')?.value.trim();
   if (!word) { showToast('Введите слово'); return; }
-  // Prefer DeepSeek imagePrompt if available, else use association text or word
+  // Prefer HF imagePrompt if available, else use association text or word
   const assoc = document.getElementById('inp-association')?.value.trim();
-  const prompt = (deepseekAssociation?.imagePrompt) || assoc || word;
+  const prompt = (hfAssociation?.imagePrompt) || assoc || word;
   pendingImageWord = null;
   await handleGenerateImage('__new__', prompt);
 }
