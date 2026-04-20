@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tactile Tutor — Phonetic Mnemonics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <div id="screen-dashboard" class="screen active"></div>
+  <div id="screen-add" class="screen"></div>
+  <div id="screen-practice" class="screen"></div>
+  <div id="screen-library" class="screen"></div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-screen="dashboard" onclick="navigate('dashboard')">
+      <span class="material-icons-round">dashboard</span><span>Сегодня</span>
+    </button>
+    <button class="nav-btn" data-screen="add" onclick="navigate('add')">
+      <span class="material-icons-round">mic_none</span><span>Добавить</span>
+    </button>
+    <button class="nav-btn" data-screen="practice" onclick="navigate('practice')">
+      <span class="material-icons-round">style</span><span>Практика</span>
+    </button>
+    <button class="nav-btn" data-screen="library" onclick="navigate('library')">
+      <span class="material-icons-round">menu_book</span><span>Библиотека</span>
+    </button>
+  </nav>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
