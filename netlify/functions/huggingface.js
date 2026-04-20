@@ -14,9 +14,9 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Используем Qwen 2.5 72B Instruct через Hugging Face Inference API
+    // Используем Qwen 2.5 72B Instruct через Hugging Face Inference API (OpenAI-совместимый эндпоинт)
     const modelId = "Qwen/Qwen2.5-72B-Instruct";
-    const url = `https://api-inference.huggingface.co/models/${modelId}/v1/chat/completions`;
+    const url = "https://api-inference.huggingface.co/v1/chat/completions";
     
     const response = await fetch(url, {
       method: 'POST',
@@ -35,7 +35,18 @@ exports.handler = async (event, context) => {
       })
     });
 
-    const data = await response.json();
+    const contentType = response.headers.get("content-type");
+    let data;
+    if (contentType && contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      console.error("Non-JSON response from HF:", text.slice(0, 200));
+      return {
+        statusCode: response.status,
+        body: JSON.stringify({ error: { message: `HF вернул не JSON (код ${response.status}). Возможно, модель еще загружается или неверный URL.` } })
+      };
+    }
     
     if (!response.ok) {
       return {
