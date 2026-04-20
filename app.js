@@ -104,7 +104,7 @@ async function callHF(prompt) {
   }
 
   // Путь к нашей серверной функции на Netlify
-  const url = '/.netlify/functions/ai-gen';
+  const url = '/.netlify/functions/huggingface';
   console.log('Calling AI function:', url);
 
   try {

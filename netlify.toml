@@ -2,4 +2,4 @@
   publish = "."
 
 [functions]
-  directory = "functions"
+  directory = "netlify/functions"
