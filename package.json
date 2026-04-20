@@ -1,0 +1,8 @@
+{
+  "name": "fonomemory",
+  "version": "1.0.0",
+  "description": "Phonetic Mnemonics App",
+  "main": "app.js",
+  "dependencies": {},
+  "devDependencies": {}
+}

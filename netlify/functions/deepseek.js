@@ -5,6 +5,7 @@ exports.handler = async (event, context) => {
 
   try {
     const { prompt, key } = JSON.parse(event.body);
+    console.log("DeepSeek function called for prompt:", prompt.slice(0, 50) + "...");
 
     if (!key || !prompt) {
       return { 
@@ -13,20 +14,21 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    const url = "https://api.deepseek.com/chat/completions";
     
-    // Используем встроенный в Node 18+ fetch
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        safetySettings: [
-          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
-        ]
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: "You are a helpful assistant that generates mnemonic associations." },
+          { role: "user", content: prompt }
+        ],
+        stream: false
       })
     });
 

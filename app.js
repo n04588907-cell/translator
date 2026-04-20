@@ -6,10 +6,10 @@ let practiceSession = [];
 let practiceIndex = 0;
 let cardFlipped = false;
 let pendingImageWord = null;
-let geminiAssociation = null; // stores the last Gemini-proposed association
+let deepseekAssociation = null; // stores the last DeepSeek-proposed association
 
-function getGeminiKey() { return localStorage.getItem('gemini_api_key') || ''; }
-function saveGeminiKey(k) { localStorage.setItem('gemini_api_key', k.trim()); }
+function getDeepSeekKey() { return localStorage.getItem('deepseek_api_key') || ''; }
+function saveDeepSeekKey(k) { localStorage.setItem('deepseek_api_key', k.trim()); }
 
 // ========== SEED DATA ==========
 if (words.length === 0) {
@@ -93,18 +93,18 @@ async function autoPhonetic(word) {
   } catch { return ''; }
 }
 
-// ========== GEMINI API ==========
-async function callGemini(prompt) {
-  const key = getGeminiKey();
-  window.lastGeminiError = '';
+// ========== DEEPSEEK API ==========
+async function callDeepSeek(prompt) {
+  const key = getDeepSeekKey();
+  window.lastDeepSeekError = '';
   
   if (!key) {
-    window.lastGeminiError = 'API ключ не найден. Нажмите ⚙️ и вставьте ключ.';
+    window.lastDeepSeekError = 'API ключ не найден. Нажмите ⚙️ и вставьте ключ.';
     return null;
   }
 
   // Путь к нашей серверной функции на Netlify
-  const url = '/.netlify/functions/gemini';
+  const url = '/.netlify/functions/deepseek';
 
   try {
     const res = await fetch(url, {
@@ -115,7 +115,7 @@ async function callGemini(prompt) {
     
     // Если мы не на Netlify (локально), функция может не существовать
     if (res.status === 404) {
-      window.lastGeminiError = 'Функция не найдена. Работает только после деплоя на Netlify.';
+      window.lastDeepSeekError = 'Функция не найдена. Работает только после деплоя на Netlify.';
       return null;
     }
 
@@ -123,28 +123,23 @@ async function callGemini(prompt) {
 
     if (data.error) {
       const msg = data.error.message || '';
-      if (msg.toLowerCase().includes('location')) {
-        window.lastGeminiError = 'Даже сервер Netlify заблокирован (редко). Попробуйте сменить регион деплоя.';
-      } else {
-        window.lastGeminiError = msg || 'Ошибка API';
-      }
+      window.lastDeepSeekError = msg || 'Ошибка API';
       return null;
     }
 
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const text = data?.choices?.[0]?.message?.content;
     if (text) return text;
     
-    window.lastGeminiError = 'Получен пустой ответ от ИИ';
+    window.lastDeepSeekError = 'Получен пустой ответ от ИИ';
     return null;
   } catch (e) {
-    // В локальной разработке без netlify dev это упадет здесь
-    window.lastGeminiError = 'Ошибка вызова функции. Вы развернули проект на Netlify?';
+    window.lastDeepSeekError = 'Ошибка вызова функции. Вы развернули проект на Netlify?';
     console.error('Netlify function error:', e);
     return null;
   }
 }
 
-async function geminiGetAssociation(word, phonetic, translation) {
+async function deepseekGetAssociation(word, phonetic, translation) {
   const prompt = `Ты помогаешь запоминать английские слова методом фонетических ассоциаций (метод Аткинсона).
 
 Слово: "${word}"
@@ -158,7 +153,7 @@ async function geminiGetAssociation(word, phonetic, translation) {
   "association": "текст ассоциации",
   "imagePrompt": "detailed English prompt for illustration based on this mnemonic"
 }`;
-  const raw = await callGemini(prompt);
+  const raw = await callDeepSeek(prompt);
   if (!raw) return null;
   try {
     // Strip possible markdown code fences
@@ -167,8 +162,8 @@ async function geminiGetAssociation(word, phonetic, translation) {
     if (!jsonStr) throw new Error("JSON не найден в ответе");
     return JSON.parse(jsonStr);
   } catch (e) {
-    console.error('Gemini JSON Parse Error:', e, raw);
-    window.lastGeminiError = 'Ошибка обработки ответа ИИ: ' + e.message;
+    console.error('DeepSeek JSON Parse Error:', e, raw);
+    window.lastDeepSeekError = 'Ошибка обработки ответа ИИ: ' + e.message;
     return null;
   }
 }
@@ -303,14 +298,12 @@ function wordChip(w) {
 
 // ========== ADD WORD ==========
 function renderAddWord() {
-  geminiAssociation = null;
-  const el = document.getElementById('screen-add');
-  const hasGemini = !!getGeminiKey();
+  const hasDeepSeek = !!getDeepSeekKey();
   el.innerHTML = `
     <div style="margin-bottom:20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div class="headline">Новое слово</div>
-        <button class="btn-icon btn" title="Настройки Gemini" onclick="openGeminiSettings()">
+        <button class="btn-icon btn" title="Настройки DeepSeek" onclick="openDeepSeekSettings()">
           <span class="material-icons-round" style="font-size:20px;">settings</span>
         </button>
       </div>
@@ -346,11 +339,11 @@ function renderAddWord() {
     <div class="input-wrap">
       <label class="input-label">Мнемоническая ассоциация</label>
       <textarea id="inp-association" class="input" rows="3"
-        placeholder="Нажмите «Gemini» — ИИ предложит ассоциацию…"></textarea>
-      <button id="gemini-assoc-btn" class="btn btn-secondary" style="margin-top:8px;"
-        onclick="requestGeminiAssociation()" ${hasGemini ? '' : 'title="Добавьте Gemini API ключ в настройках"'}>
+        placeholder="Нажмите «DeepSeek» — ИИ предложит ассоциацию…"></textarea>
+      <button id="deepseek-assoc-btn" class="btn btn-secondary" style="margin-top:8px;"
+        onclick="requestDeepSeekAssociation()" ${hasDeepSeek ? '' : 'title="Добавьте DeepSeek API ключ в настройках"'}>
         <span class="material-icons-round">psychology</span>
-        ${hasGemini ? 'Предложить ассоциацию (Gemini)' : '🔑 Нужен Gemini API ключ'}
+        ${hasDeepSeek ? 'Предложить ассоциацию (DeepSeek)' : '🔑 Нужен DeepSeek API ключ'}
       </button>
     </div>
 
@@ -362,7 +355,7 @@ function renderAddWord() {
       <div class="assoc-image-wrap" id="assoc-image-wrap">
         <div class="assoc-image-placeholder">
           <span class="material-icons-round">image_search</span>
-          <span class="body-sm" id="img-hint">Сначала получите ассоциацию от Gemini</span>
+          <span class="body-sm" id="img-hint">Сначала получите ассоциацию от DeepSeek</span>
         </div>
       </div>
       <button id="gen-img-btn" class="btn btn-secondary" onclick="handleGenerateImageNew()">
@@ -402,27 +395,27 @@ function startVoiceInput() {
   };
 }
 
-// ========== GEMINI ASSOCIATION ==========
-async function requestGeminiAssociation() {
+// ========== DEEPSEEK ASSOCIATION ==========
+async function requestDeepSeekAssociation() {
   const word = document.getElementById('inp-word')?.value.trim();
   const phonetic = document.getElementById('inp-phonetic')?.value.trim();
   const translation = document.getElementById('inp-translation')?.value.trim();
   if (!word) { showToast('Введите слово'); return; }
-  if (!getGeminiKey()) { openGeminiSettings(); return; }
+  if (!getDeepSeekKey()) { openDeepSeekSettings(); return; }
 
-  const btn = document.getElementById('gemini-assoc-btn');
+  const btn = document.getElementById('deepseek-assoc-btn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0 auto;"></div>'; }
 
-  const result = await geminiGetAssociation(word, phonetic || '', translation || '');
+  const result = await deepseekGetAssociation(word, phonetic || '', translation || '');
 
   if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-icons-round">psychology</span> Предложить снова'; }
 
   if (!result) { 
-    showToast('⚠️ ' + (window.lastGeminiError || 'Gemini не ответил. Проверьте API ключ.')); 
+    showToast('⚠️ ' + (window.lastDeepSeekError || 'DeepSeek не ответил. Проверьте API ключ.')); 
     return; 
   }
 
-  geminiAssociation = result;
+  deepseekAssociation = result;
   const assocTA = document.getElementById('inp-association');
   if (assocTA) assocTA.value = result.association || '';
 
@@ -430,35 +423,35 @@ async function requestGeminiAssociation() {
   const hint = document.getElementById('img-hint');
   if (hint && result.imagePrompt) hint.textContent = '💡 ' + result.imagePrompt.slice(0, 80) + '…';
 
-  showToast('✅ Ассоциация от Gemini готова!');
+  showToast('✅ Ассоциация от DeepSeek готова!');
 }
 
-// ========== GEMINI SETTINGS MODAL ==========
-function openGeminiSettings() {
+// ========== DEEPSEEK SETTINGS MODAL ==========
+function openDeepSeekSettings() {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(45,52,44,0.5);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px;';
   overlay.innerHTML = `
     <div style="background:var(--surface);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:380px;">
-      <div class="title" style="margin-bottom:8px;">🔑 Gemini API ключ <span style="font-size:10px;opacity:0.5;float:right;">v1.3</span></div>
-      <div class="body-sm" style="margin-bottom:16px;">Получите бесплатный ключ на <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--secondary);">aistudio.google.com</a></div>
-      <input id="gemini-key-input" class="input" type="password" placeholder="AIza..."
-        value="${getGeminiKey()}" style="margin-bottom:12px;">
-      <div id="gemini-test-status" class="body-sm" style="margin-bottom:16px;min-height:20px;"></div>
+      <div class="title" style="margin-bottom:8px;">🔑 DeepSeek API ключ <span style="font-size:10px;opacity:0.5;float:right;">v1.3</span></div>
+      <div class="body-sm" style="margin-bottom:16px;">Получите ключ на <a href="https://platform.deepseek.com/" target="_blank" style="color:var(--secondary);">platform.deepseek.com</a></div>
+      <input id="deepseek-key-input" class="input" type="password" placeholder="sk-..."
+        value="${getDeepSeekKey()}" style="margin-bottom:12px;">
+      <div id="deepseek-test-status" class="body-sm" style="margin-bottom:16px;min-height:20px;"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <button class="btn btn-secondary" onclick="this.closest('div[style]').remove()">Отмена</button>
-        <button id="btn-save-gemini" class="btn btn-primary" onclick="
-          const v = document.getElementById('gemini-key-input').value.trim();
+        <button id="btn-save-deepseek" class="btn btn-primary" onclick="
+          const v = document.getElementById('deepseek-key-input').value.trim();
           if(!v) { showToast('Введите ключ'); return; }
-          saveGeminiKey(v);
+          saveDeepSeekKey(v);
           this.textContent = 'Проверяю...';
           this.disabled = true;
-          callGemini('test').then(res => {
+          callDeepSeek('test').then(res => {
             if(res) {
               showToast('✅ Ключ работает!');
               this.closest('div[style]').remove();
               renderAddWord();
             } else {
-              document.getElementById('gemini-test-status').innerHTML = '<span style=&quot;color:var(--error)&quot;>❌ ' + (window.lastGeminiError || 'Ошибка') + '</span>';
+              document.getElementById('deepseek-test-status').innerHTML = '<span style=&quot;color:var(--error)&quot;>❌ ' + (window.lastDeepSeekError || 'Ошибка') + '</span>';
               this.textContent = 'Сохранить';
               this.disabled = false;
             }
@@ -532,9 +525,9 @@ function selectTranslation(btn, value) {
 async function handleGenerateImageNew() {
   const word = document.getElementById('inp-word')?.value.trim();
   if (!word) { showToast('Введите слово'); return; }
-  // Prefer Gemini imagePrompt if available, else use association text or word
+  // Prefer DeepSeek imagePrompt if available, else use association text or word
   const assoc = document.getElementById('inp-association')?.value.trim();
-  const prompt = (geminiAssociation?.imagePrompt) || assoc || word;
+  const prompt = (deepseekAssociation?.imagePrompt) || assoc || word;
   pendingImageWord = null;
   await handleGenerateImage('__new__', prompt);
 }
