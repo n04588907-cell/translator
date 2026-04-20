@@ -104,17 +104,20 @@ async function callHF(prompt) {
   }
 
   // Путь к нашей серверной функции на Netlify
-  const url = '/.netlify/functions/huggingface';
+  const url = window.location.origin + '/.netlify/functions/huggingface?v=' + Date.now();
   console.log('Calling AI function:', url);
 
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
       body: JSON.stringify({ prompt, key })
     });
     
-    console.log('AI function response status:', res.status);
+    console.log('AI function response:', res.status, res.statusText);
     
     // Если мы не на Netlify (локально), функция может не существовать
     if (res.status === 404) {
