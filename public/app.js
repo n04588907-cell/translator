@@ -103,33 +103,38 @@ async function callHF(prompt) {
     return null;
   }
 
-  // Путь к нашей серверной функции на Netlify
-  const url = window.location.origin + '/.netlify/functions/huggingface?v=' + Date.now();
-  console.log('Calling AI function:', url);
+  // Теперь вызываем Hugging Face API напрямую из браузера
+  // Это позволяет приложению работать даже если кредиты на Netlify закончились
+  const modelId = "Qwen/Qwen2.5-72B-Instruct";
+  const url = "https://api-inference.huggingface.co/v1/chat/completions";
+  console.log('Calling Hugging Face API directly...');
 
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache'
+        'Authorization': `Bearer ${key}`
       },
-      body: JSON.stringify({ prompt, key })
+      body: JSON.stringify({
+        model: modelId,
+        messages: [
+          { role: "system", content: "You are a helpful assistant that generates mnemonic associations. Respond only with JSON." },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 500,
+        stream: false
+      })
     });
     
-    console.log('AI function response:', res.status, res.statusText);
+    console.log('HF API response:', res.status, res.statusText);
     
-    // Если мы не на Netlify (локально), функция может не существовать
-    if (res.status === 404) {
-      window.lastHFError = `Функция не найдена (404) по адресу ${url}. Убедитесь, что деплой завершен.`;
-      return null;
-    }
-
     const data = await res.json();
 
     if (data.error) {
       const msg = typeof data.error === 'string' ? data.error : (data.error.message || '');
       window.lastHFError = msg || 'Ошибка API';
+      if (res.status === 503) window.lastHFError = 'Модель загружается на сервер Hugging Face. Подождите 30 секунд и попробуйте снова.';
       return null;
     }
 
@@ -139,8 +144,8 @@ async function callHF(prompt) {
     window.lastHFError = 'Получен пустой ответ от ИИ';
     return null;
   } catch (e) {
-    window.lastHFError = 'Ошибка вызова функции. Вы развернули проект на Netlify?';
-    console.error('Netlify function error:', e);
+    window.lastHFError = 'Ошибка сети. Проверьте подключение к интернету.';
+    console.error('HF Direct API error:', e);
     return null;
   }
 }
