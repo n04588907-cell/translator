@@ -3,4 +3,3 @@
 
 [functions]
   directory = "netlify/functions"
-  node_version = "18"

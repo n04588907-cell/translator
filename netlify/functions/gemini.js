@@ -1,7 +1,4 @@
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-
 exports.handler = async (event, context) => {
-  // Разрешаем только POST запросы
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
@@ -16,9 +13,9 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Пробуем вызвать Gemini от имени сервера Netlify
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
     
+    // Используем встроенный в Node 18+ fetch
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -38,8 +35,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: response.status,
       headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*", // На всякий случай для тестов
+        "Content-Type": "application/json"
       },
       body: JSON.stringify(data)
     };
